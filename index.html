@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control de Guías - Socios</title>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+    
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background-color: #0d0d0d; color: white; display: flex; justify-content: center; padding: 20px; }
+        .card { background: #161616; padding: 2rem; border-radius: 12px; width: 100%; max-width: 500px; border: 1px solid #333; position: relative; }
+        
+        /* Contador de Guías */
+        .contador-badge { position: absolute; top: 15px; right: 15px; background: #00e676; color: black; padding: 5px 15px; border-radius: 20px; font-weight: bold; font-size: 0.9rem; }
+        
+        h1 { text-align: center; color: #00e676; font-size: 1.5rem; margin-bottom: 1.5rem; }
+        
+        .input-group { display: flex; gap: 8px; margin-bottom: 20px; }
+        input { flex: 1; padding: 12px; border-radius: 6px; border: 2px solid #333; background: #222; color: white; font-size: 16px; outline: none; }
+        input:focus { border-color: #00e676; }
+        input.error { border-color: #ff3d00; background-color: #451a1a; animation: shake 0.3s infinite; }
+        
+        .btn-add { padding: 12px 20px; background-color: #00e676; color: #000; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        
+        .actions { display: flex; gap: 8px; margin-top: 20px; }
+        .btn-download { flex: 2; padding: 10px; background-color: #1976D2; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; }
+        .btn-clear { flex: 1; padding: 10px; background-color: #333; color: #ff5252; border: 1px solid #444; border-radius: 6px; cursor: pointer; }
+        
+        #listaGuias { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; margin-top: 20px; border-top: 1px solid #333; padding-top: 20px; max-height: 350px; overflow-y: auto; }
+        .guia-item { background: #252525; padding: 8px; border-radius: 4px; text-align: center; font-family: monospace; font-size: 0.85rem; border: 1px solid #444; }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-6px); }
+            75% { transform: translateX(6px); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <div class="contador-badge">Total: <span id="numContador">0</span></div>
+    <h1>📦 Registro de Guías</h1>
+    
+    <div class="input-group">
+        <input type="text" id="nuevaGuia" placeholder="Escriba o escanee..." autofocus autocomplete="off">
+        <button class="btn-add" onclick="agregarGuia()">Añadir</button>
+    </div>
+
+    <div id="listaGuias"></div>
+
+    <div class="actions">
+        <button class="btn-download" onclick="descargarExcel()">📊 Descargar Excel</button>
+        <button class="btn-clear" onclick="limpiarTodo()">🗑️ Limpiar</button>
+    </div>
+</div>
+
+<script>
+    let datosGuias = [];
+    const input = document.getElementById('nuevaGuia');
+    const contenedor = document.getElementById('listaGuias');
+    const txtContador = document.getElementById('numContador');
+
+    function sonarAlarmaLarga() {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+
+        oscillator.type = 'sawtooth'; 
+        oscillator.frequency.setValueAtTime(250, audioCtx.currentTime); 
+        gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 2.0);
+
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+
+        oscillator.start();
+        oscillator.stop(audioCtx.currentTime + 2.0); 
+    }
+
+    function actualizarContador() {
+        txtContador.textContent = datosGuias.length;
+    }
+
+    function agregarGuia() {
+        const valor = input.value.trim().toUpperCase();
+        if (valor === "") return;
+
+        const existe = datosGuias.some(g => g["Guia"] === valor);
+
+        if (existe) {
+            sonarAlarmaLarga();
+            input.classList.add('error');
+            setTimeout(() => input.classList.remove('error'), 2000); // La alerta visual dura lo que el sonido
+            input.value = "";
+            return;
+        }
+
+        datosGuias.push({ "Guia": valor, "Hora": new Date().toLocaleTimeString() });
+        actualizarContador();
+        
+        const div = document.createElement('div');
+        div.className = 'guia-item';
+        div.textContent = valor;
+        contenedor.prepend(div);
+        
+        input.value = "";
+        input.focus();
+    }
+
+    function descargarExcel() {
+        if (datosGuias.length === 0) return alert("No hay guías para descargar");
+        const ws = XLSX.utils.json_to_sheet(datosGuias);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Reporte");
+        XLSX.writeFile(wb, "Reporte_Guias.xlsx");
+    }
+
+    function limpiarTodo() {
+        if (confirm("¿Seguro que quieres borrar todo el trabajo actual?")) {
+            datosGuias = [];
+            contenedor.innerHTML = "";
+            actualizarContador();
+            input.focus();
+        }
+    }
+
+    input.addEventListener("keypress", (e) => { if (e.key === "Enter") agregarGuia(); });
+</script>
+
+</body>
+</html>
